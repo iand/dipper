@@ -1,0 +1,1060 @@
+<html>
+  <head>
+    <title>Dipper: Talis Platform Browser</title>
+
+    <script src="js/jquery-1.3.2.min.js" type="text/javascript"></script>
+    <script src="js/jquery.ba-url.min.js" type="text/javascript"></script>
+    <script src="js/moriarty.js" type="text/javascript"></script>
+    <script src="js/jquery.jthrottle.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="css/screen.css" type="text/css" media="screen, projection">
+    <link rel="stylesheet" href="css/print.css" type="text/css" media="print">
+    <!--[if lt IE 8]><link rel="stylesheet" href="css/ie.css" type="text/css" media="screen, projection"><![endif]-->
+
+
+
+    <style type="text/css">
+      body {font-size: 83.3331%; }
+      #browser a {text-decoration:none; color:inherit;}
+      #browser td.value a {background: url(images/external.png) center right no-repeat; padding-right: 13px; }
+      #browser td.value a.browseable {background: none; color:#009;text-decoration:underline;}
+      #browser td.value a.loading {background: url(images/spinner.gif) center right no-repeat; padding-right: 19px; text-decoration:none; color:inherit;}
+
+      img.thumb {max-width: 310px;}
+      #storeform form {background-color:#E5ECF9; padding:1.4em;margin:0 0 1.5em 0; }
+    </style>
+
+
+
+    <script type="text/javascript">
+var describes = {};
+
+proxy_uri = undefined;
+if (window.location.host != 'api.talis.com') {
+  proxy_uri = window.location.protocol + '//' + window.location.host + '/proxy.php?uri=';
+}
+
+
+
+
+
+var store_re = /^http\:\/\/api\.talis\.com\/stores\/[a-z-0-9]+/;
+
+
+  function add_void(g, store_uri, patterns, examples) {
+    var i = 0;
+    for (i = 0; i < patterns.length; i++) {
+      g.add_literal_triple(store_uri, 'http://rdfs.org/ns/void#uriRegexPattern', patterns[i]);
+    }
+    for (i = 0; i < examples.length; i++) {
+      g.add_resource_triple(store_uri, 'http://rdfs.org/ns/void#exampleResource', examples[i]);
+    }
+  }
+
+
+//embed some of this for now
+var void_graph = new Moriarty.SimpleGraph();
+
+
+
+void_graph.from_json(
+  {'http://api.talis.com/stores/openlibrary':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://openlibrary.org/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://openlibrary.org/b/OL649M', 'type':'uri'}
+                                                 , {'value':'http://openlibrary.org/b/OL1752M', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/ons':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://ons.dataincubator.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://ons.dataincubator.org/', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/space':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://nasa.dataincubator.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://nasa.dataincubator.org/spacecraft/1969-059A', 'type':'uri'}
+                                                 , {'value':'http://nasa.dataincubator.org/discipline/planetaryscience', 'type':'uri'}
+                                                 ]
+      }
+  ,'http://api.talis.com/stores/periodicals':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://periodicals.dataincubator.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://periodicals.dataincubator.org/', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/iand-dev1':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://oecd.dataincubator.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://oecd.dataincubator.org/', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/discogs':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://discogs.dataincubator.org/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/kwijibo-dev2':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://climb.dataincubator.org/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/bbc-backstage':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://www.bbc.co.uk/programmes/', 'type':'literal'}
+                                                 , {'value':'^http://www.bbc.co.uk/music/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://www.bbc.co.uk/programmes/b006mf4b#programme', 'type':'uri'}
+                                                 , {'value':'http://www.bbc.co.uk/programmes/b006qnmr#programme', 'type':'uri'}
+                                                 , {'value':'http://www.bbc.co.uk/music/reviews/mxvr#review', 'type':'uri'}
+                                                 ]
+      }
+  ,'http://api.talis.com/stores/lcsh-info':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://lcsubjects.org/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://lcsubjects.org/subjects/sh85026423#concept', 'type':'uri'}
+                                                 , {'value':'http://lcsubjects.org/subjects/sh85004281#concept', 'type':'uri'}
+                                                 ]
+      }
+  ,'http://api.talis.com/stores/iand':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://iandavis.com/id/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://iandavis.com/id/me', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/zephyr-live-broadminster3':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://lists.broadminsteruniversity.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://lists.broadminsteruniversity.org/lists/demo', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/ckan':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://ckan.net/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://ckan.net/package/rdf/freebase/', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/dbpedia':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ 
+                                                   {'value':'^http://dbpedia.org/resource/', 'type':'literal'}
+                                                 , {'value':'^http://dbpedia.org/ontology/', 'type':'literal'}
+                                                 ]
+      }
+  ,'http://api.talis.com/stores/moseley':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://moseley.dataincubator.org/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/airports':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://airports.dataincubator.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://airports.dataincubator.org/airports/EGBB', 'type':'uri'}]
+      }
+  ,'http://api.talis.com/stores/transport':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://geo.data.gov.uk/', 'type':'literal'}
+                                                 , {'value':'^http://transport.data.gov.uk/', 'type':'literal'}
+                                                 , {'value':'^http://local-government.data.gov.uk/', 'type':'literal'}
+
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://geo.data.gov.uk/0/id/country/england', 'type':'uri'}
+                                                 , {'value':'http://geo.data.gov.uk/0/id/region/north-west', 'type':'uri'}
+                                                 , {'value':'http://geo.data.gov.uk/0/id/area/00KA', 'type':'uri'}
+                                                 , {'value':'http://local-government.data.gov.uk/0/id/local-authority/00KA', 'type':'uri'}
+                                                 , {'value':'http://transport.data.gov.uk/0/category/road/classification', 'type':'uri'}
+                                                 , {'value':'http://transport.data.gov.uk/0/id/traffic-count-point/36195', 'type':'uri'}
+                                                 , {'value':'http://transport.data.gov.uk/0/id/traffic-count/4/N/2008-06-05/08:00:00/HGVr2', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/ordnance-survey':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://data.ordnancesurvey.co.uk/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://data.ordnancesurvey.co.uk/id/7000000000037256', 'type':'uri'}
+                                                 , {'value':'http://data.ordnancesurvey.co.uk/id/7000000000000000', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/bl-dev1':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://bl.dataincubator.org/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://bl.dataincubator.org/amed/palliative-care', 'type':'uri'}
+                                                 , {'value':'http://bl.dataincubator.org/periodicals/0966-0461/2009/18/8/managing-lymphoedema-in-palliative-care-patients', 'type':'uri'}
+                                                 , {'value':'http://bl.dataincubator.org/periodicals/0966-0461/2009/18/8', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/semlib-dev1':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://semanticlibrary.org/', 'type':'literal'}]
+      }
+
+  ,'http://api.talis.com/stores/semlib-dev1':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://semanticlibrary.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://semanticlibrary.org/people/isaac-asimov', 'type':'uri'}
+                                                 , {'value':'http://semanticlibrary.org/series/dragonriders-of-pern', 'type':'uri'}
+                                                 , {'value':'http://semanticlibrary.org/subjects/middle-earth-imaginary-place', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/productdb':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://productdb.org/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://productdb.org/cars', 'type':'uri'}
+                                                 , {'value':'http://productdb.org/apple-iphone', 'type':'uri'}
+                                                 , {'value':'http://productdb.org/manufacturer-adidas', 'type':'uri'}
+                                                 ]
+      }
+
+
+
+  ,'http://api.talis.com/stores/govuk-analytics':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://analytics.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-business':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://business.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-crime':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://crime.data.gov.uk/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://crime.data.gov.uk/statistics/motoring-offences/2006#endorsable-fixed-pentalty-notices-issued-by-result-and-police-force-area-N15', 'type':'uri'}
+                                                 , {'value':'http://environment.data.gov.uk/statistics/agriculture-horticulture-survey/june-2008#labour', 'type':'uri'}
+                                                 ]
+
+
+
+      }
+  ,'http://api.talis.com/stores/govuk-culture':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://culture.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-datasets':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://datasets.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-statistics':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://statistics.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-economy':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://economy.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-education':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://education.data.gov.uk/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://education.data.gov.uk/id/school/_120805', 'type':'uri'}
+                                                 ]
+
+
+      }
+  ,'http://api.talis.com/stores/govuk-environment':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://environment.data.gov.uk/', 'type':'literal'}]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://environment.data.gov.uk/statistics/agriculture-horticulture-survey/june-2008#labour-S67', 'type':'uri'}
+                                                 , {'value':'http://environment.data.gov.uk/statistics/agriculture-horticulture-survey/june-2008#labour', 'type':'uri'}
+                                                 ]
+
+
+
+      }
+  ,'http://api.talis.com/stores/govuk-finance':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://finance.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-geo':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://geo.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-health':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://health.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-international-aid':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://international-aid.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-justice':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://justice.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-legislation':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://legislation.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-local-government':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://local-government.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-notices':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://notices.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-people':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://people.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/govuk-science':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://science.data.gov.uk/', 'type':'literal'}]
+      }
+  ,'http://api.talis.com/stores/bis-innovation':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://research.data.gov.uk/', 'type':'literal'}
+                                                  ,{'value':'^http://patents.data.gov.uk/', 'type':'literal'}
+                                                  ,{'value':'^http://business.data.gov.uk/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://patents.data.gov.uk/id/application/GB2356673', 'type':'uri'}
+                                                 , {'value':'http://research.data.gov.uk/id/project/tsb/100616', 'type':'uri'}
+                                                 , {'value':'http://patents.data.gov.uk/id/applicants/483f7aa9e0b453e854aa9a0d86fb0f86', 'type':'uri'}
+                                                 //, {'value':'http://education.data.gov.uk/id/institution/H-0134', 'type':'uri'}
+                                                 , {'value':'http://business.data.gov.uk/id/company/3796233', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/fao-dev1':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://data.fao.org/', 'type':'literal'}
+                                                  ,{'value':'^http://api.talis.com/stores/fao1-dev', 'type':'literal'}
+                                                  ,{'value':'^http://api.talis.com/stores/fao', 'type':'literal'}
+                                                  ,{'value':'^http://www.fao.org/aims/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://data.fao.org/reference/AGRIS/CZ2009000698/id', 'type':'uri'}
+                                                  ,{'value':'http://data.fao.org/reference/AGRIS/IR2009000197/id', 'type':'uri'}
+                                                  ,{'value':'http://www.fao.org/aims/aos/agrovoc#c_3869', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/geonames':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://sws.geonames.org/', 'type':'literal'}
+                                                 ]
+      ,'http://rdfs.org/ns/void#exampleResource':[ {'value':'http://sws.geonames.org/5391959/', 'type':'uri'}
+                                                  ,{'value':'http://sws.geonames.org/2638978/', 'type':'uri'}
+                                                  ,{'value':'http://sws.geonames.org/1283416/', 'type':'uri'}
+                                                 ]
+      }
+
+  ,'http://api.talis.com/stores/wordnet':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://purl.org/vocabularies/princeton/wn30/', 'type':'literal'}
+                                                 ]
+      }
+                                                  
+  ,'http://api.talis.com/stores/linkedgeodata':
+      {'http://rdfs.org/ns/void#uriRegexPattern':[ {'value':'^http://linkedgeodata.org/', 'type':'literal'}
+                                                 ]
+      }
+
+
+  }
+);
+
+add_void(void_graph, 'http://api.talis.com/stores/guardian',
+                    ['^http://guardian.dataincubator.org/'
+                    ,'^http://www.guardian.co.uk/'
+                    ],
+                    []
+                    );
+
+
+add_void(void_graph, 'http://api.talis.com/stores/engagetenant18',
+                    ['^http://api.talis.com/stores/engagetenant18/items'],
+                    ['http://api.talis.com/stores/engagetenant18/items/1195656515347#self']
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/datagovuk',
+                    ['^http://www.london-gazette.co.uk/'
+                    ,'^http://www.gazettes-online.co.uk/'
+                    ],
+                    ['http://www.london-gazette.co.uk/id/issues/59067/notices/822649'
+                    ,'http://www.gazettes-online.co.uk/ontology/resources/courts#HighCourtOfJustice'
+                    ,'http://www.gazettes-online.co.uk/id/proxy/companies/02998024'
+                    ,'http://www.london-gazette.co.uk/id/issues/58803/notices/597359#WolseleyUKLtd'
+                    ,'http://www.london-gazette.co.uk/id/issues/58803/notices/596078#NW16NW_6th'
+                    ,'http://www.london-gazette.co.uk/id/issues/58840/notices/625662#searchForNextOfKin001'
+                    ]
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/guardian',
+                    ['^http://guardian.dataincubator.org/'],
+                    ['http://guardian.dataincubator.org/category/uk'
+                    ,'http://guardian.dataincubator.org/collection/uk-mps'
+                    ,'http://guardian.dataincubator.org/constituency/bethnal-green-and-bow'
+                    ,'http://guardian.dataincubator.org/person/adam-afriyie'
+                    ,'http://guardian.dataincubator.org/person/charles-kennedy'
+                    ]
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/plings-dev1',
+                    ['^http://plings.net/'],
+                    ['http://plings.net/rdf/orgs/3']
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/cia-factbook',
+                    ['^http://www4.wiwiss.fu-berlin.de/factbook/resource/'],
+                    ['http://www4.wiwiss.fu-berlin.de/factbook/resource/Switzerland']
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/kier-dev3',
+                    ['^http://kierdavis.com/'],
+                    []
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/openvocab',
+                    ['^http://open.vocab.org/terms'],
+                    [
+                     'http://open.vocab.org/terms/sortLabel'
+                    ,'http://open.vocab.org/terms/informalName'
+                    ,'http://open.vocab.org/terms/Formula'
+                    
+                    ]
+                    );
+
+
+add_void(void_graph, 'http://api.talis.com/stores/musicbrainz',
+                    ['^http://musicbrainz.dataincubator.org/'],
+                    [
+                      'http://musicbrainz.dataincubator.org/'
+                      ,'http://musicbrainz.dataincubator.org/artist/4e60a56a-514a-4a19-a3cc-49927c96b3cb'
+                      ,'http://musicbrainz.dataincubator.org/artist/8970d868-0723-483b-a75b-51088913d3d4'
+                      ,'http://musicbrainz.dataincubator.org/label/73fc1220-d52c-478c-883c-124c1bf38b95'
+                      ,'http://musicbrainz.dataincubator.org/label/ce24ab18-1bd6-4293-a486-546d13d6a5e2'
+                      ,'http://musicbrainz.dataincubator.org/release-group/451dca98-c118-32e1-9244-c47ca9c3c0f9'
+                      ,'http://musicbrainz.dataincubator.org/release/939f83be-5197-4144-9d91-694c51231150'
+                      ,'http://musicbrainz.dataincubator.org/release/e33609a4-fcda-4ebe-b845-b6503a6c0405'
+                      ,'http://musicbrainz.dataincubator.org/track/8717d821-88ef-4873-bd91-32a0b72ba415'
+                      ,'http://musicbrainz.dataincubator.org/track/c2000e4b-6aa7-4b5a-b744-f7addd52fdb5'
+                    
+                    ]
+                    );
+
+add_void(void_graph, 'http://api.talis.com/stores/schema-cache',
+                    ['^http://purl.org/dc/'
+                    ,'^http://purl.org/goodrelations/v1#'
+                    ,'^http://purl.org/ontology/mo/'
+                    ,'^http://purl.org/vocab/'
+                    ,'^http://www.w3.org/2002/07/owl#'
+                    ,'^http://www.w3.org/2004/02/skos/core#'
+                    ,'^http://xmlns.com/foaf/0.1/'
+                    ,'^http://www.w3.org/2004/02/skos/core#'
+                    ,'^http://purl.org/goodrelations/v1#'
+                    ],
+                    [
+                    ]
+                    );
+
+
+var data_sources= {};
+var label_graph = new Moriarty.SimpleGraph();
+
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type','type','types','is type of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_1','first', 'first', 'is first member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_2','second', 'second', 'is second member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_3','third', 'third', 'is third member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_4','fourth', 'fourth', 'is fourth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_5','fifth', 'fifth', 'is fifth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_6','sixth', 'sixth', 'is sixth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_7','seventh', 'seventh', 'is seventh member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_8','eighth', 'eighth', 'is eighth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_9','ninth', 'ninth', 'is ninth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_10','tenth', 'tenth', 'is tenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_11','eleventh', 'eleventh', 'is eleventh member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_12','twelth', 'twelth', 'is twelth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_13','thirteenth', 'thirteenth', 'is thirteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_14','fourteenth', 'fourteenth', 'is fourteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_15','fifteenth', 'fifteenth', 'is fifteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_16','sixteenth', 'sixteenth', 'is sixteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_17','seventeenth', 'seventeenth', 'is seventeenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_18','eighteenth', 'eighteenth', 'is eighteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_19','nineteenth', 'nineteenth', 'is nineteenth member of');
+add_regular_label(label_graph, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#_20','twentieth', 'twentieth', 'is twentieth member of');
+
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#label','label','labels','is label of');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#comment','comment','comments','is comment of');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#seeAlso','see also','see also','is see also of');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#isDefinedBy','defined by','defined by','defines');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#range','range','ranges','is range of');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#domain','domain','domains','is domain of');
+add_regular_label(label_graph, 'http://www.w3.org/2000/01/rdf-schema#subClassOf','subclass of','subclass of','is superclass of');
+
+add_regular_label(label_graph, 'http://www.w3.org/2002/07/owl#imports','imports','imports','is imported by');
+add_regular_label(label_graph, 'http://www.w3.org/2002/07/owl#sameAs','same as','same as','same as');
+
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/isPrimaryTopicOf','is the primary topic of','is the primary topic of','primary topic');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/primaryTopic','primary topic','primary topics','is the primary topic of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/topic','topic','topics','is a topic of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/name','name','names','is name of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/homepage','homepage','homepages','is homepage of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/weblog','blog','blogs','is weblog of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/knows','knows','knows','knows');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/interest','interest','interests','is interest of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/firstName','first name','first names','is first name of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/surname','surname','surnames','is surname of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/depiction','picture','pictures','is picture of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/nick','nickname','nickname','is nickname of');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/phone','phone number' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/mbox','email address' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/workplaceHomepage','workplace\'s homepage' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/schoolHomepage','school\'s homepage' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/openid','OpenID' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/mbox_sha1sum','email address hashcode' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/title','title' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/maker','maker', 'makers', 'made' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/made','made', 'made', 'maker' );
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/accountProfilePage','account profile page');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/accountName','account name');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/accountServiceHomepage','account service homepage');
+add_regular_label(label_graph, 'http://xmlns.com/foaf/0.1/holdsAccount','account', 'accounts', 'is account held by');
+
+add_regular_label(label_graph, 'http://rdfs.org/sioc/ns#topic','topic');
+
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/title','title','titles','is the title of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/description','description','descriptions','is description of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/date','date','dates','is date of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/identifier','identifier','identifiers','is identifier of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/type','document type','document types','is document type of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/contributor','contributor','contributors','is contributor to');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/rights','rights statement','right statements','is rights statement for');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/subject','subject','subjects','is subject for');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/publisher','publisher','publishers','is publisher of');
+add_regular_label(label_graph, 'http://purl.org/dc/elements/1.1/creator','creator','creators','is creator of');
+
+add_regular_label(label_graph, 'http://purl.org/dc/terms/abstract','abstract','abstracts','is abstract of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/accessRights','access rights','access rights','are access rights for');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/alternative','alternative title','alternative titles','is alternative title for');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/audience','audience','audiences','is audience for');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/available','date available','dates available','is date available of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/bibliographicCitation','bibliographic citation','bibliographic citations','is bibliographic citation of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/contributor','contributor','contributors','is contributor to');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/coverage','coverage','coverage','is coverage of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/created','date created','dates created','is date created of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/creator','creator','creators','is creator of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/date','date','dates','is date of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/dateAccepted','date accepted','dates accepted','is date accepted of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/dateCopyrighted','date copyrighted','dates copyrighted','is date copyrighted of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/dateSubmitted','date submitted','dates submitted','is date submitted of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/description','description','descriptions','is description of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/format','format','formats','is format of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/hasPart','has part','has parts','is part of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/hasVersion','version','versions','version of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/identifier','identifier','identifiers','is identifier of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/isPartOf','part of','part of','part');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/isReferencedBy','is referenced by','is referenced by','references');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/isReplacedBy','is replaced by','is replaced by','replaces');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/isRequiredBy','is required by','is required by','requires');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/issued','date issued','dates issued','is date issued of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/isVersionOf','version of','version of','version');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/language','language','languages','is language of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/license','license','licenses','is license of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/medium','medium','media','is medium of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/modified','date modified','dates modified','is date modified of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/provenance','provenance','provenances','is provenance of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/publisher','publisher','publishers','is publisher of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/replaces','replaces','replaces','replaced by');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/references','references','references','is referenced by');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/relation','relation','relations','relation');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/replaces','replaces','replaces','is replaced by');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/requires','requires','requires','is required by');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/rights','rights statement','right statements','is rights statement for');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/rightsHolder','rights holder','rights holders','is rights holder of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/source','source','sources','is source of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/subject','subject','subjects','is subject of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/tableOfContents','table of contents','tables of contents','is table of contents of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/title','title','titles','is the title of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/type','document type','document types','is document type of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/updated','date updated','dates updated','is date updated of');
+add_regular_label(label_graph, 'http://purl.org/dc/terms/valid','date valid','dates valid','is date valid of');
+
+add_regular_label(label_graph, 'http://www.w3.org/2003/01/geo/wgs84_pos#lat','latitude','latitudes','is latitude of');
+add_regular_label(label_graph, 'http://www.w3.org/2003/01/geo/wgs84_pos#long','longitude','longitudes','is longitude of');
+add_regular_label(label_graph, 'http://www.w3.org/2003/01/geo/wgs84_pos#location','location');
+
+add_regular_label(label_graph, 'http://purl.org/vocab/bio/0.1/olb','one line bio','one line bios','is one line bio of');
+add_regular_label(label_graph, 'http://purl.org/vocab/bio/0.1/event','life event','life events','is life event of');
+add_regular_label(label_graph, 'http://purl.org/vocab/bio/0.1/date','date');
+
+add_regular_label(label_graph, 'http://purl.org/vocab/relationship/parentOf','is parent of','is parent of','is child of');
+add_regular_label(label_graph, 'http://purl.org/vocab/relationship/childOf','is child of','is child of','is parent of');
+add_regular_label(label_graph, 'http://purl.org/vocab/relationship/spouseOf','spouse','spouses','spouse');
+add_regular_label(label_graph, 'http://purl.org/vocab/relationship/acquaintanceOf','acquaintance');
+add_regular_label(label_graph, 'http://purl.org/vocab/relationship/friendOf','friend');
+
+add_regular_label(label_graph, 'http://purl.org/vocab/vann/example','example','examples','is example for');
+add_regular_label(label_graph, 'http://purl.org/vocab/vann/preferredNamespacePrefix','preferred namespace prefix','preferred namespace prefixes','is preferred namespace prefix for');
+add_regular_label(label_graph, 'http://purl.org/vocab/vann/preferredNamespaceUri','preferred namespace URI','preferred namespace URIs','is preferred namespace URI for');
+add_regular_label(label_graph, 'http://purl.org/vocab/vann/changes','change log','change logs','is change log of');
+
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#prefLabel','preferred label','preferred labels','is preferred label of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#altLabel','alternative label','alternative labels','is alternative label of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#hiddenLabel','hidden label','hidden labels','is hidden label of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#member','member','members','is a member of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#related','related concept','related concepts','is related concept of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#definition','definition','definitions','is definition of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#context','context','contexts','is context of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#broader','broader concept','broader concepts','narrower concept');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#narrower','narrower concept','narrower concepts','broader concept');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#note','note','notes','is note of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#scopeNote','scope note','scope notes','is scope note of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#example','example','examples','is example of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#historyNote','history note','history notes','is history note of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#editorialNote','editorial note','editorial notes','is editorial note of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#changeNote','change note','change notes','is change note of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#inScheme','scheme','schemes','is scheme of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#hasTopConcept','top concept','top concepts','is top concept of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#exactMatch','exact match','exact matches','is exact match of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#closeMatch','close match','close matches','is close match of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#broadMatch','broad match','broad matches','is broad match of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#narrowMatch','narrow match','narrow matches','is narrow match of');
+add_regular_label(label_graph, 'http://www.w3.org/2004/02/skos/core#relatedMatch','related match','related matches','is related match of');
+
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#exampleResource','example resource','example resources','is example resource of');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#sparqlEndpoint','SPARQL endpoint','SPARQL endpoints','is SPARQL endpoint of');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#subset','subset','subsets','is subset of');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#uriLookupEndpoint','URI lookup point','URI lookup points','is URI lookup point of');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#dataDump','data dump','data dumps','is data dump of');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#vocabulary','vocabulary used','vocabularies used','is vocabulary used in');
+add_regular_label(label_graph, 'http://rdfs.org/ns/void#uriRegexPattern', 'URI regex pattern');
+
+add_regular_label(label_graph, 'http://open.vocab.org/terms/numberOfPages','number of pages','numbers of pages','is number of pages of');
+add_regular_label(label_graph, 'http://open.vocab.org/terms/subtitle','sub-title','sub-titles','is sub-title of');
+add_regular_label(label_graph, 'http://open.vocab.org/terms/firstSentence', 'first sentence');
+add_regular_label(label_graph, 'http://open.vocab.org/terms/weight', 'weight');
+
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/edition','edition');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/issue','issue');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/volume','volume');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/pageStart','first page');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/pageEnd','last page');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/issn','ISSN','ISSNs','is ISSN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/eissn','EISSN','EISSNs','is EISSN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/isbn','ISBN','ISBNs','is ISBN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/isbn10','10 digit ISBN','10 digit ISBNs','is 10 digit ISBN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/isbn13','13 digit ISBN','13 digit ISBNs','is 13 digit ISBN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/lccn','LCCN','LCCNs','is LCCN of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/doi','DOI','DOIs','is DOI of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/oclcnum','OCLC number','OCLC numbers','is OCLC number of');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/contributorList','list of contributors','lists of contributors','is list of contributors to');
+add_regular_label(label_graph, 'http://purl.org/ontology/bibo/authorList','list of authors','lists of authors','is list of authors of');
+
+
+add_regular_label(label_graph, 'http://purl.org/ontology/mo/wikipedia','wikipedia page','wikipedia pages','is wikipedia page of');
+
+add_regular_label(label_graph, 'http://purl.org/ontology/po/episode','episode');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/series','series','series');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/medium_synopsis','medium synopsis','medium synopses');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/short_synopsis','short synopsis','short synopses');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/long_synopsis','long synopsis','long synopses');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/genre','genre');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/microsite','microsite');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/format','programme format');
+add_regular_label(label_graph, 'http://purl.org/ontology/po/masterbrand','master  brand');
+
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/actor','actor','actors','performed');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/performed','performed','performed','actor');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/role', 'role');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/mission', 'mission');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/missionRole', 'mission role');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/alternateName', 'alternate name');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/mass', 'mass');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/discipline', 'discipline');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/spacecraft', 'spacecraft', 'spacecraft');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/agency', 'agency');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/launch', 'launch', 'launches');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/launchvehicle', 'launch vehicle');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/launchsite', 'launch site');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/launched', 'launched', 'launched');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/country', 'country', 'countries');
+add_regular_label(label_graph, 'http://purl.org/net/schemas/space/place', 'place');
+
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#borders', 'borders', 'borders', 'borders');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasCensusCode', 'census code');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasArea', 'area');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasName', 'name');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasOfficialName', 'official name');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasOfficialWelshName', 'official welsh name');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasVernacularName', 'vernacular name');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#hasBoundaryLineName', 'boundary line name');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#completelySpatiallyContains', 'completely spatially contains',  'completely spatially contains',  'is completely spatially contained by');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#tangentiallySpatiallyContains', 'tangentially spatially contains',  'tangentially spatially contains',  'is tangentially spatially contained by');
+add_regular_label(label_graph, 'http://www.ordnancesurvey.co.uk/ontology/AdministrativeGeography/v2.0/AdministrativeGeography.rdf#isSpatiallyEqualTo', 'spatially equal to',  'spatially equal to',  'spatially equal to');
+
+add_regular_label(label_graph, 'http://rdvocab.info/Elements/placeOfPublication', 'place of publication',  'places of publication');
+
+add_regular_label(label_graph, 'http://www.w3.org/2000/10/swap/pim/contact#nearestAirport', 'nearest airport');
+
+add_regular_label(label_graph, 'http://www.daml.org/2001/10/html/airport-ont#icao', 'ICAO', 'ICAOs', 'is ICAO of');
+add_regular_label(label_graph, 'http://www.daml.org/2001/10/html/airport-ont#iata', 'IATA', 'IATAs', 'is IATA of');
+
+add_regular_label(label_graph, 'http://schemas.talis.com/2005/address/schema#regionName', 'region name');
+add_regular_label(label_graph, 'http://schemas.talis.com/2005/address/schema#streetAddress', 'street address');
+add_regular_label(label_graph, 'http://schemas.talis.com/2005/address/schema#localityName', 'locality name');
+add_regular_label(label_graph, 'http://schemas.talis.com/2005/address/schema#postalCode', 'postal code');
+
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#tags', 'tag');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#changeReason', 'reason for change', 'reasons for change');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#active', 'is active?', 'is active?');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#createdDate', 'date created', 'dates created');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#previousState', 'previous state');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#appliedBy', 'applied by','applied by');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#appliedDate', 'date applied','dates applied');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#reason', 'reason');
+add_regular_label(label_graph, 'http://schemas.talis.com/2006/recordstore/schema#note', 'note');
+
+add_regular_label(label_graph, 'http://schemas.talis.com/2005/dir/schema#etag', 'ETag');
+
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#label', 'label');
+
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#hasEdition', 'edition');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#hasIssueNumber', 'issue number');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#hasPublicationDate', 'publication date');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#hasNoticeNumber', 'notice number');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#hasNoticeCode', 'notice code');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#isAbout', 'about', 'about');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology#isInIssue', 'issue');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology/location#hasAddress', 'address', 'addresses');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology/court#courtName', 'court name');
+add_regular_label(label_graph, 'http://www.gazettes-online.co.uk/ontology/court#sitsAt', 'sits at', 'sits at');
+
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#street-address', 'street');
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#locality', 'locality');
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#region', 'region');
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#postal-code', 'postcode');
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#tel', 'telephone');
+add_regular_label(label_graph, 'http://www.w3.org/2006/vcard/ns#fax', 'fax number');
+
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#name', 'name');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#alternateName', 'alternate name');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#locationMap', 'map');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#inCountry', 'country', 'countries');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#parentFeatures', 'parent features');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#parentFeature', 'parent feature');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#nearbyFeatures', 'nearby features');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#featureClass', 'feature class');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#featureCode', 'feature code');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#population', 'population');
+add_regular_label(label_graph, 'http://www.geonames.org/ontology#wikipediaArticle', 'wikipedia article');
+
+
+
+  function add_regular_label(g, p, l, pl, inv) {
+    pl = pl || l + 's';
+    inv = inv || 'is ' + l + ' of';
+    g.add_literal_triple(p, 'http://www.w3.org/2000/01/rdf-schema#label', l, 'en');
+    g.add_literal_triple(p, 'http://purl.org/net/vocab/2004/03/label#plural', pl, 'en');
+    g.add_literal_triple(p, 'http://purl.org/net/vocab/2004/03/label#inverseSingular', inv, 'en');
+  }
+
+
+
+  function get_store(uri) {
+    for (var prefix in data_sources) {
+      if (uri.search(prefix) == 0) {
+        return data_sources[prefix];
+      }
+    }
+    var uri_info = /^http\:\/\/api\.talis\.com\/stores\/[a-z-0-9]+/.exec(uri);
+    if (uri_info != null) {
+      return uri_info[0];
+    }
+    return undefined;
+  }
+
+  function change_location(q, s) {
+    if (!s || s.length == 0 || s.indexOf('(') != -1) {
+      var store_uri = get_store(q);
+      if (store_uri) {
+        s = store_uri.slice(store_uri.lastIndexOf('/')+1);
+      }
+    }
+    loc = window.location.href;
+    hashindex = loc.indexOf('#');
+    if (hashindex != -1) {
+      loc = loc.slice(0,hashindex);
+    }
+    window.location = loc + '#' + $.fragment({'s':s, 'q':q});
+
+  }
+
+  function browse(uri, store_name) {
+    if (!uri || !store_name || store_name.indexOf('(') != -1) return;
+    //change_location(uri, store_name);
+    var store_uri = 'http://api.talis.com/stores/' + store_name;
+    var request_uri = store_uri + "/meta?output=json&about=" + escape(uri);
+
+    if (describes.hasOwnProperty(request_uri)) {
+      var g = describes[request_uri];
+      render(g, uri, store_uri, true);
+    }
+    else {
+      load_json(request_uri, uri, function(data, textStatus){
+          var g = new Moriarty.SimpleGraph();
+          g.from_json(data);
+          describes[request_uri] = g;
+          render(g, uri, store_uri, true);
+        },
+        function(req,status) {
+          if (status == 'timeout') {
+            $('#browser').html('<div class="notice">Could not retrieve data because the request timed out</div>');
+          }
+          else if (status != 'success') {
+            $('#browser').html('<div class="notice">Could not retrieve data: ' + status + '</div>');
+          }
+        }, 15000);
+    }
+  }
+
+  function search(q, store_name) {
+    if (!q || !store_name || store_name.indexOf('(') != -1) return;
+    change_location(q, store_name);
+    var store_uri = 'http://api.talis.com/stores/' + store_name;
+    var request_uri = store_uri + "/items?query=" + escape(q);
+
+  }
+
+
+  function on_frag_change() {
+    var frag_params = $.fragment();
+
+    if (frag_params['q']) {
+      $('#q').val(frag_params['q']);
+      $('#s').val(frag_params['s']);
+      if (frag_params['q'].indexOf('http://') == 0) {
+        if (frag_params['s'] && frag_params['s'].indexOf(' ') == -1) {
+          browse(frag_params['q'], frag_params['s']);
+          return;
+        }
+        else {
+          var store_uri = get_store(frag_params['q']);
+          if (store_uri) {
+            browse(frag_params['q'], store_uri.slice(store_uri.lastIndexOf('/')+1));
+            return;
+          }
+          else {
+            $('#browser').html('<div class="notice">Could not determine suitable store for ' + frag_params['q'] + '</div>');
+
+          }
+        }
+      }
+    }
+
+  }
+
+
+  function lookup_brief(i, e) {
+    lookup(i, $(this),false);
+  }
+  function lookup_full(i, e) {
+    lookup(i, $(this),true);
+  }
+
+
+  function lookup(i, elem, show_description) {
+    //show_description = show_description || true;
+    elem.addClass('external');
+    var uri = elem.attr('href');
+    var secondary_store_uri = get_store(uri);
+    if (secondary_store_uri) {
+      var secondary_uri = secondary_store_uri + "/meta?output=json&about=" + escape(uri);
+      if (describes.hasOwnProperty(secondary_uri)) {
+        var g2 = describes[secondary_uri];
+        if (!g2.is_empty()) {
+
+          var label = g2.get_label(uri);
+          if (label != uri) {
+            elem.text(label);
+          }
+          if (show_description) {
+            var desc = g2.get_description(uri);
+            if (desc) {
+              elem.after(' &mdash; <span class="desc">' + desc + '</span><br />');
+            }
+          }
+        }
+        elem.removeClass('external');
+        elem.addClass('browseable');
+        elem.click(function(e) {
+          e.preventDefault();
+          change_location($(this).attr('href'), secondary_store_uri.slice(secondary_store_uri.lastIndexOf('/')+1));
+          return false;
+        });
+
+
+      }
+      else {
+        elem.addClass('loading');
+        load_json(secondary_uri, uri, function(secondary_data, textStatus){
+            //elem.removeClass('loading');
+            var g2 = new Moriarty.SimpleGraph();
+            g2.from_json(secondary_data);
+            describes[secondary_uri] = g2;
+            if (!g2.is_empty()) {
+
+              var label = g2.get_label(uri);
+              if (label != uri) {
+                elem.text(label);
+              }
+              if (show_description) {
+                var desc = g2.get_description(uri);
+                if (desc) {
+                  elem.after(' &mdash; <span class="desc">' + desc + '</span><br />');
+                }
+              }
+            }
+        },
+        function(req,status) {
+          elem.removeClass('loading');
+          elem.removeClass('external');
+          elem.addClass('browseable');
+          elem.click(function(e) {
+            e.preventDefault();
+            change_location($(this).attr('href'), secondary_store_uri.slice(secondary_store_uri.lastIndexOf('/')+1));
+            return false;
+          });
+        }
+
+
+
+        );
+      }
+
+    }
+
+  }
+
+
+  function load_json(request_uri, subject, success_fn, complete_fn, timeout_ms) {
+    complete_fn = complete_fn || function(r,s) {};
+    timeout_ms = timeout_ms || 10000;
+    if (request_uri) {
+      if (proxy_uri) {
+        request_uri = proxy_uri  + escape(request_uri);
+      }
+
+      var opt =  {type: "GET", url: request_uri, dataType: 'json', timeout:timeout_ms, success:function(data) { success_fn(data);  }, complete: complete_fn }
+      $.ajax( opt );
+    }
+  }
+
+  function render(g, uri, store_uri, do_lookup) {
+
+    if (store_uri) {
+      store_name = store_uri.slice(store_uri.lastIndexOf('/')+1);
+      $(document).attr("title", 'Browsing ' + store_name +  ' with Dipper. the Talis Platform Browser');
+      //$('#title').html('Browsing "' + store_name + '"');
+    }
+    else {
+      $(document).attr("title", 'Dipper, the Talis Platform Browser');
+      //$('#title').html('Browsing the Talis Platform');
+    }
+
+    if (g.has_triple_about(uri)) {
+      $('#start').hide();
+      var we = new Moriarty.WidgetEngine(g,label_graph);
+      $('#browser').html(we.render({'value': uri, 'type':'uri'}, false, false));
+
+      if (store_uri) {
+        $('#datardf').attr('href', store_uri + '/meta?output=rdf&about=' + escape(uri));
+        $('#dataturtle').attr('href', store_uri + '/meta?output=turtle&about=' + escape(uri));
+        $('#datajson').attr('href', store_uri + '/meta?output=json&about=' + escape(uri));
+        $('#datantriples').attr('href', store_uri + '/meta?output=ntriples&about=' + escape(uri));
+        $('#formats').show();
+      }
+      else {
+        $('#formats').hide();
+      }
+      if (do_lookup) {
+        $('#browser th a.unlabelled').throttle( lookup_brief, {per: 3, pause: 50});
+        $('#browser td.value a.unlabelled').throttle( lookup_full, {per: 3, pause: 50});
+      }
+
+      if (store_uri) {
+        $('#browser').append('<div id="backlinks"><fieldset><legend>Backlinks</legend><span id="backlinkdata">Looking for backlinks...</span></fieldset></div>');
+        var store = new Moriarty.Store(store_uri, proxy_uri);
+          store.backlinks(uri, function(data, textStatus){
+            if (data['results']['bindings'].length > 500) {
+              $('#backlinkdata').html('Too many backlinks to display (' + data['results']['bindings'].length + ').');
+            }
+            else if (data['results']['bindings'].length > 0) {
+              var ginv = new Moriarty.SimpleGraph();
+              for (var i = 0; i < data['results']['bindings'].length; i++) {
+                ginv.add_resource_triple(uri, data['results']['bindings'][i]['p']['value'], data['results']['bindings'][i]['r']['value']);
+              }
+              properties = ginv.properties(uri);
+
+              var we = new Moriarty.WidgetEngine(ginv,label_graph);
+              var w = new Moriarty.Widget(ginv,we);
+              h = w.format_property_value_list({'type':'uri','value':uri}, properties, true);
+
+              $('#backlinkdata').html(h);
+              $('#backlinks th a.unlabelled').throttle( lookup_brief, {per: 3, pause: 50} );
+              $('#backlinks td.value a.unlabelled').throttle( lookup_full, {per: 3, pause: 100} );
+            }
+            else {
+              $('#backlinks').hide();
+            }
+        }  );
+
+      }
+    }
+    else {
+      $('#formats').hide();
+      $('#browser').html('<div class="notice">No data found in this store for ' + uri + '</div>');
+      $('#start').show();
+    }
+
+  }
+
+
+   $(document).ready(function() {
+      $.fragmentChange( true );
+      $(document).bind('fragmentChange', on_frag_change);
+
+      $('#formats').hide();
+
+      $('#find').click(function(e) {
+        e.preventDefault();
+        change_location($('#q').val(), $('#s').val());
+//        var loc = window.location.href;
+//        var hash = window.location.hash;
+//        if (hash.length > 0) {
+//          loc = loc.slice(0, loc.length - hash.length);
+//        }
+//        window.location = loc + '#s=' + escape($('#s').val()) + '&q=' + escape($('#q').val());
+        return false;
+      });
+
+      var options = [];
+      var examples_list = [];
+
+      var void_stores = void_graph.subjects();
+      for (vs_index = 0; vs_index < void_stores.length; vs_index++) {
+        var store_name = void_stores[vs_index].slice(void_stores[vs_index].lastIndexOf('/')+1);
+        options.push('<option value="' + store_name + '">' + store_name + '</option>');
+        var patterns = void_graph.values(void_stores[vs_index], 'http://rdfs.org/ns/void#uriRegexPattern');
+        for (patt_index = 0; patt_index < patterns.length; patt_index++) {
+          if (patterns[patt_index]['type'] == 'literal') {
+            data_sources[patterns[patt_index]['value']] = void_stores[vs_index];
+          }
+        }
+        var examples = void_graph.values(void_stores[vs_index], 'http://rdfs.org/ns/void#exampleResource');
+        if (examples.length > 0) {
+          examples_list.push('<dt>' + store_name + '</dt>');
+          for (example_index = 0; example_index < examples.length; example_index++) {
+            if (examples[example_index]['type'] == 'uri') {
+              examples_list.push('<dd><a href="#q=' + escape(examples[example_index]['value']) + '">' + examples[example_index]['value'] + '</a></dd>');
+            }
+          }
+        }
+      }
+      options.sort();
+      $('#s').html('<option>(select a store)</option>' + options.join(''));
+      $('#examples').html(examples_list.join(''));
+
+      if (window.location.hash) {
+        on_frag_change();
+      }
+
+   });
+
+
+
+    </script>
+  </head>
+  <body>
+    <div class="container">
+    <!--[if lt IE 7]>
+      <div id="ie6warning" class="span-20"><center><p style="color:#fff;background-color:red"><span style="font-weight:bold">NOTICE:</span> Because you are using an older browser; this web page may not display correctly. </p></center></div>
+    <![endif]-->
+
+      <div id="header" class="span-20">
+        <h2 id="title"><a href="dipper.html" style="text-decoration:none; color:inherit">Dipper</a></h2>
+      </div>
+
+      <div id="storeform"  class="span-20">
+        <form>
+          <label for="q">Lookup: </label><input name="q" id="q" type="text" size="40" value="http://nasa.dataincubator.org/spacecraft/1969-059A"/>
+          <input type="submit" value="Lookup" id="find"/> <a href="dipper.html">Start Over</a><br />
+          <label for="s">Store: </label><select name="s" id="s">
+            <option>(Select a Store)</option>
+          </select> (optional)
+          <div id="formats">Get this data:
+            <a href="#" rel="alternate" type="application/rdf+xml" id="datardf">RDF/XML</a> |
+            <a href="#" rel="alternate" type="application/json" id="datajson">JSON</a> |
+            <a href="#" rel="alternate" type="text/plain" id="dataturtle">Turtle</a> |
+            <a href="#" rel="alternate" type="text/plain" id="datantriples">NTriples</a>
+          </div>
+        </form>
+      </div>
+
+      <div id="browser" class="span-20">
+
+      </div>
+      <div id="start" class="span-20">
+        <fieldset>
+          <legend>Some starting points:</legend>
+          <dl id="examples">
+          </dl>
+        </fieldset>
+      </div>
+
+
+    </div>
+  </body>
+</html>
